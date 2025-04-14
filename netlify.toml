@@ -1,3 +1,13 @@
 [build]
   command = "CI=false npm run build"
   publish = "build"
+
+# Added section to configure headers
+[[headers]]
+  # Apply this header rule to all paths on your site
+  for = "/*"
+  [headers.values]
+    # Set the COOP policy to allow popups like Google Sign-In
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+    # Add any other global headers you might need here
+    # e.g., X-Frame-Options = "DENY"
