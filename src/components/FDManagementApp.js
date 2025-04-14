@@ -39,7 +39,7 @@ export default function FDManagementWithGoogleSheets() {
         document.body.appendChild(script);
       }
     };
-
+    /*
     const initClient = () => {
       window.gapi.client.init({
         apiKey: 'AIzaSyDHW_gKZlLB6bicp1ltdXRmUdRt7gJJvdo', // Your API key
@@ -57,6 +57,63 @@ export default function FDManagementWithGoogleSheets() {
       }).catch(error => {
         console.error('Error initializing Google API client:', error);
         setError(`Error initializing Google API client: ${error.message}`);
+        setIsLoading(false);
+      });
+    };
+    */
+
+    const initClient = () => {
+      // Ensure gapi is loaded before trying to use it
+      if (!window.gapi || !window.gapi.client) {
+        console.error("Google API script not loaded yet.");
+        // Optionally set an error state or retry mechanism here
+        setError("Google API script not loaded. Please wait or refresh.");
+        setIsLoading(false);
+        return;
+      }
+  
+      window.gapi.client.init({
+        // apiKey: 'YOUR_API_KEY', // Often NOT needed for gapi.auth2 sign-in flow.
+                                 // It's primarily for non-authenticated API calls or specific Google APIs.
+                                 // Keep it if you have specific reasons, but try removing it first for auth issues.
+  
+        clientId: 'bnbnbnbn-hk0u5pnonu910os60lusuog7j9el79p7.apps.googleusercontent.com', // KEEP THIS - It's essential
+  
+        discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'], // KEEP THIS - Needed to discover Sheets API methods
+  
+        scope: 'https://www.googleapis.com/auth/spreadsheets', // KEEP THIS - Defines the permissions you need
+  
+        // redirect_uri: window.location.origin // TRY REMOVING/COMMENTING THIS OUT.
+                                               // The JS library often handles redirects implicitly based on
+                                               // 'Authorized JavaScript origins' set in Google Cloud Console.
+                                               // Explicitly setting it can cause mismatch errors if not perfectly aligned.
+  
+      }).then(() => {
+        // Check if auth2 module is loaded correctly
+        if (!window.gapi.auth2) {
+            console.error("gapi.auth2 module not loaded.");
+            setError("Google Authentication module failed to load.");
+            setIsLoading(false);
+            return;
+        }
+        // Listen for sign-in state changes
+        window.gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+  
+        // Handle the initial sign-in state
+        updateSigninStatus(window.gapi.auth2.getAuthInstance().isSignedIn.get());
+  
+      }).catch(error => {
+        // Log the detailed error object
+        console.error('Error initializing Google API client:', error);
+  
+        // Provide a more informative error message if possible
+        let errorMessage = `Error initializing Google API client.`;
+        if (error.details) {
+          errorMessage += ` Details: ${error.details}`;
+        } else if (error.message) {
+           errorMessage += ` Message: ${error.message}`;
+        }
+        setError(errorMessage);
         setIsLoading(false);
       });
     };
