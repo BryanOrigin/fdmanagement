@@ -30,44 +30,111 @@ export default function SimpleFDManagementApp() {
 
 
   // Fetch data from GitHub
-  const fetchDataFromGitHub = async () => {
-    try {
-      setIsLoading(true);
-      // First get the SHA of the file if it exists
-      const response = await fetch(
-        `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`,
-        {
-          headers: {
-            Authorization: `token ${GITHUB_TOKEN}`,
-            Accept: 'application/vnd.github.v3+json',
-          },
-        }
-      );
-
-      if (response.status === 404) {
-        // File doesn't exist yet
-        setFds([]);
-        setIsLoading(false);
-        return;
+ // Fetch data from GitHub
+const fetchDataFromGitHub = async () => {
+  try {
+    setIsLoading(true);
+    
+    // Check if GitHub config is available
+    if (!GITHUB_USERNAME || !REPO_NAME || !GITHUB_TOKEN) {
+      console.error('GitHub configuration missing');
+      setError('GitHub configuration missing. Please check environment variables.');
+      setIsLoading(false);
+      return;
+    }
+    
+    // First get the SHA of the file if it exists
+    const response = await fetch(
+      `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`,
+      {
+        headers: {
+          Authorization: `Bearer ${GITHUB_TOKEN}`, // Changed from 'token' to 'Bearer'
+          Accept: 'application/vnd.github.v3+json',
+        },
       }
+    );
 
-      const data = await response.json();
-      
-      // Decode the base64 content
+    if (response.status === 401) {
+      console.error('GitHub authorization failed. Check your token.');
+      setError('GitHub authorization failed. Check your token or permissions.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (response.status === 404) {
+      // File doesn't exist yet
+      console.log('File does not exist yet, starting with empty array');
+      setFds([]);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('GitHub API error details:', errorData);
+      setError(`GitHub API error: ${response.status}`);
+      setIsLoading(false);
+      return;
+    }
+
+    const data = await response.json();
+    
+    if (!data.content) {
+      console.error('No content in GitHub response:', data);
+      setError('Invalid response from GitHub. Missing content field.');
+      setIsLoading(false);
+      return;
+    }
+    
+    // Decode the base64 content
+    try {
       const content = JSON.parse(atob(data.content));
       setFds(content);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error fetching data from GitHub:', error);
-      setError('Failed to load data. Please check your GitHub configuration.');
-      setIsLoading(false);
-      // Fallback to localStorage if GitHub fails
-      const savedFds = localStorage.getItem('fixedDeposits');
-      if (savedFds) {
-        setFds(JSON.parse(savedFds));
-      }
+    } catch (decodeError) {
+      console.error('Error decoding content:', decodeError);
+      setError('Error decoding content from GitHub. Starting with empty data.');
+      setFds([]);
     }
-  };
+    
+    setIsLoading(false);
+  } catch (error) {
+    /*
+    console.error('Error fetching data from GitHub:', error);
+    setError('Failed to load data. Please check your GitHub configuration.');
+    setIsLoading(false);
+    // Fallback to localStorage if GitHub fails
+    const savedFds = localStorage.getItem('fixedDeposits');
+    if (savedFds) {
+      setFds(JSON.parse(savedFds));
+    }
+      */
+
+    return (
+      <div className="max-w-md mx-auto mt-8">
+        <div className="p-4 mb-4 bg-red-50 border border-red-200 rounded-md">
+          <h2 className="text-red-700 font-semibold mb-2">Error</h2>
+          <p className="text-red-600">{error}</p>
+          <button 
+            onClick={() => setError(null)} 
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Dismiss
+          </button>
+        </div>
+        
+        <div className="p-4 bg-gray-50 border border-gray-200 rounded">
+          <h3 className="font-medium mb-2">GitHub Configuration Status:</h3>
+          <ul className="list-disc pl-5">
+            <li>Username: {GITHUB_USERNAME ? '✅ Set' : '❌ Missing'}</li>
+            <li>Repo Name: {REPO_NAME ? '✅ Set' : '❌ Missing'}</li>
+            <li>Token: {GITHUB_TOKEN ? '✅ Set' : '❌ Missing'}</li>
+            <li>File Path: {FILE_PATH || 'fixed-deposits.json'}</li>
+          </ul>
+        </div>
+      </div>
+    );
+  }
+};
 
   // Save data to GitHub
   // Save data to GitHub
@@ -80,8 +147,9 @@ const saveDataToGitHub = async (updatedFds) => {
       `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`,
       {
         headers: {
-          Authorization: `token ${GITHUB_TOKEN}`,
+          Authorization: `Bearer ${GITHUB_TOKEN}`, // Changed from 'token' to 'Bearer'
           Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
         },
       }
     );
