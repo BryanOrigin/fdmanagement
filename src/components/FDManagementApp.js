@@ -18,6 +18,7 @@ export default function SimpleFDManagementApp() {
     durationType: 'years',
     startDate: '',
   });
+
   
   const [editIndex, setEditIndex] = useState(null);
   
@@ -27,10 +28,12 @@ export default function SimpleFDManagementApp() {
   const GITHUB_TOKEN = process.env.REACT_APP_GITHUB_TOKEN;
   const FILE_PATH = 'fixed-deposits.json';
 
+  useEffect(() => {
+    console.log(GITHUB_USERNAME,REPO_NAME,GITHUB_TOKEN,FILE_PATH);
+  }, []);
   // Fetch data from GitHub
   const fetchDataFromGitHub = async () => {
     try {
-      console.log(GITHUB_USERNAME,GITHUB_TOKEN,REACT_APP_GITHUB_REPO);
       setIsLoading(true);
       // First get the SHA of the file if it exists
       const response = await fetch(
