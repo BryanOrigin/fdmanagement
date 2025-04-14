@@ -30,6 +30,7 @@ export default function SimpleFDManagementApp() {
   // Fetch data from GitHub
   const fetchDataFromGitHub = async () => {
     try {
+      console.log(GITHUB_USERNAME,GITHUB_TOKEN,REACT_APP_GITHUB_REPO);
       setIsLoading(true);
       // First get the SHA of the file if it exists
       const response = await fetch(
