@@ -193,33 +193,51 @@ const fetchDataFromGitHub = async () => {
 
   // Save data to GitHub
   // Save data to GitHub
+// Save data to GitHub
 const saveDataToGitHub = async (updatedFds) => {
   try {
     setIsSaving(true);
     
-    // First get the SHA of the file if it exists (needed for updating)
+    // Check if GitHub config is available
+    if (!GITHUB_USERNAME || !REPO_NAME || !GITHUB_TOKEN) {
+      throw new Error('GitHub configuration missing. Please check environment variables.');
+    }
+    
+    let sha = null;
+    
+    // First check if the file exists
     const getFileResponse = await fetch(
       `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`,
       {
         headers: {
-          Authorization: `Bearer ${GITHUB_TOKEN}`, // Changed from 'token' to 'Bearer'
+          Authorization: `token ${GITHUB_TOKEN}`,
           Accept: 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json',
         },
       }
     );
     
-
-    
-
-    let sha;
+    // If file exists, get its SHA
     if (getFileResponse.ok) {
       const fileData = await getFileResponse.json();
       sha = fileData.sha;
+    } else if (getFileResponse.status !== 404) {
+      // If error is not 404 (not found), throw error
+      throw new Error(`GitHub API error: ${getFileResponse.status}`);
     }
     
     // Prepare the file content
     const content = btoa(JSON.stringify(updatedFds, null, 2));
+    
+    // Create request body - only include sha if updating existing file
+    const requestBody = {
+      message: 'Update fixed deposits data',
+      content: content,
+    };
+    
+    // Add SHA if file exists (we're updating)
+    if (sha) {
+      requestBody.sha = sha;
+    }
     
     // Create or update the file
     const updateResponse = await fetch(
@@ -227,7 +245,6 @@ const saveDataToGitHub = async (updatedFds) => {
       {
         method: 'PUT',
         headers: {
-          // Try both formats - depending on your token, one should work
           Authorization: `token ${GITHUB_TOKEN}`,
           Accept: 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
@@ -237,7 +254,9 @@ const saveDataToGitHub = async (updatedFds) => {
     );
     
     if (!updateResponse.ok) {
-      throw new Error('Failed to save data to GitHub');
+      const errorData = await updateResponse.json();
+      console.error('GitHub API error details:', errorData);
+      throw new Error(`Failed to save data to GitHub: ${updateResponse.status}`);
     }
     
     // Also save to localStorage as backup
@@ -245,7 +264,7 @@ const saveDataToGitHub = async (updatedFds) => {
     setIsSaving(false);
   } catch (error) {
     console.error('Error saving data to GitHub:', error);
-    setError('Failed to save data to GitHub. Changes saved locally.');
+    setError(`Failed to save to GitHub: ${error.message}. Changes saved locally.`);
     // Still save to localStorage as backup
     localStorage.setItem('fixedDeposits', JSON.stringify(updatedFds));
     setIsSaving(false);
