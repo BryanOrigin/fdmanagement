@@ -18,265 +18,46 @@ export default function SimpleFDManagementApp() {
     durationType: 'years',
     startDate: '',
   });
-
   
   const [editIndex, setEditIndex] = useState(null);
-  
-  // GitHub configuration
-  const GITHUB_USERNAME = process.env.REACT_APP_GITHUB_USERNAME;
-  const REPO_NAME = process.env.REACT_APP_GITHUB_REPO;
-  const GITHUB_TOKEN = process.env.REACT_APP_GITHUB_TOKEN;
-  const FILE_PATH = 'fixed-deposits.json';
-// Add this test function near the top of your component
-const testGitHubConnection = async () => {
-  setError(null);
-  console.log("Testing GitHub connection...");
-  console.log("Username:", GITHUB_USERNAME);
-  console.log("Repo:", REPO_NAME);
-  console.log("Token exists:", !!GITHUB_TOKEN);
-  
-  try {
-    // First, test the GitHub API connection with user info endpoint
-    const userResponse = await fetch("https://api.github.com/user", {
-      headers: {
-        Authorization: `token ${GITHUB_TOKEN}` // Try "token" format first
-      }
-    });
-    
-    if (userResponse.status === 401) {
-      // Try Bearer format if token format failed
-      const bearerResponse = await fetch("https://api.github.com/user", {
-        headers: {
-          Authorization: `Bearer ${GITHUB_TOKEN}`
-        }
-      });
-      
-      if (bearerResponse.status === 401) {
-        throw new Error("GitHub authentication failed with both token formats. Your token may be invalid or expired.");
-      } else if (bearerResponse.ok) {
-        const userData = await bearerResponse.json();
-        console.log("GitHub connection successful using Bearer format!");
-        console.log("Logged in as:", userData.login);
-        setError(`Connection successful using Bearer format! Logged in as: ${userData.login}`);
-        return "Bearer";
-      }
-    } else if (userResponse.ok) {
-      const userData = await userResponse.json();
-      console.log("GitHub connection successful using token format!");
-      console.log("Logged in as:", userData.login);
-      setError(`Connection successful using token format! Logged in as: ${userData.login}`);
-      return "token";
-    }
-    
-    // Now test repo access
-    const repoFormat = userResponse.ok ? "token" : "Bearer";
-    const repoResponse = await fetch(
-      `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}`,
-      {
-        headers: {
-          Authorization: `${repoFormat} ${GITHUB_TOKEN}`
-        }
-      }
-    );
-    
-    if (repoResponse.ok) {
-      const repoData = await repoResponse.json();
-      console.log("Repository access successful!");
-      console.log("Repo:", repoData.full_name);
-      setError(prev => prev + `\nRepository access successful: ${repoData.full_name}`);
-    } else {
-      const repoErrorData = await repoResponse.json();
-      console.error("Repository access failed:", repoErrorData);
-      throw new Error(`Repository access failed: ${repoResponse.status} - ${repoErrorData.message}`);
-    }
-  } catch (error) {
-    console.error("GitHub test failed:", error);
-    setError(`GitHub test failed: ${error.message}`);
-  }
-};
 
-  // Fetch data from GitHub
- // Fetch data from GitHub
-const fetchDataFromGitHub = async () => {
-  try {
-    setIsLoading(true);
-    
-    // Check if GitHub config is available
-    if (!GITHUB_USERNAME || !REPO_NAME || !GITHUB_TOKEN) {
-      console.error('GitHub configuration missing');
-      setError('GitHub configuration missing. Please check environment variables.');
-      setIsLoading(false);
-      return;
-    }
-    
-    // First get the SHA of the file if it exists
-    const response = await fetch(
-      `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`,
-      {
-        headers: {
-          // Try both formats - depending on your token, one should work
-          Authorization: `token ${GITHUB_TOKEN}`,
-          Accept: 'application/vnd.github.v3+json',
-        },
-      }
-    );
-
-    if (response.status === 401) {
-      console.error('GitHub authorization failed. Check your token.');
-      setError('GitHub authorization failed. Check your token or permissions.');
-
-                {/* Add this right after your GitHub configuration status */}
-      <div className="mb-4 flex justify-center">
-        <button 
-          onClick={testGitHubConnection}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Test GitHub Connection
-        </button>
-      </div>
-      setIsLoading(false);
-      return;
-    }
-
-
-
-    if (response.status === 404) {
-      // File doesn't exist yet
-      console.log('File does not exist yet, starting with empty array');
-      setFds([]);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('GitHub API error details:', errorData);
-      setError(`GitHub API error: ${response.status}`);
-      setIsLoading(false);
-      return;
-    }
-
-    const data = await response.json();
-    
-    if (!data.content) {
-      console.error('No content in GitHub response:', data);
-      setError('Invalid response from GitHub. Missing content field.');
-      setIsLoading(false);
-      return;
-    }
-    
-    // Decode the base64 content
+  // Load data from local storage
+  const loadDataFromLocalStorage = () => {
     try {
-      const content = JSON.parse(atob(data.content));
-      setFds(content);
-    } catch (decodeError) {
-      console.error('Error decoding content:', decodeError);
-      setError('Error decoding content from GitHub. Starting with empty data.');
+      setIsLoading(true);
+      const savedFds = localStorage.getItem('fixedDeposits');
+      
+      if (savedFds) {
+        setFds(JSON.parse(savedFds));
+      } else {
+        setFds([]);
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error loading data from localStorage:', error);
+      setError('Failed to load data from local storage.');
       setFds([]);
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
-  } catch (error) {
-    
-    console.error('Error fetching data from GitHub:', error);
-    setError('Failed to load data. Please check your GitHub configuration.');
-    setIsLoading(false);
-    // Fallback to localStorage if GitHub fails
-    const savedFds = localStorage.getItem('fixedDeposits');
-    if (savedFds) {
-      setFds(JSON.parse(savedFds));
-    }
-  }
+  };
 
-  
-};
-
-  // Save data to GitHub
-  // Save data to GitHub
-// Save data to GitHub
-const saveDataToGitHub = async (updatedFds) => {
-  try {
-    setIsSaving(true);
-    
-    // Check if GitHub config is available
-    if (!GITHUB_USERNAME || !REPO_NAME || !GITHUB_TOKEN) {
-      throw new Error('GitHub configuration missing. Please check environment variables.');
+  // Save data to local storage
+  const saveDataToLocalStorage = async (updatedFds) => {
+    try {
+      setIsSaving(true);
+      localStorage.setItem('fixedDeposits', JSON.stringify(updatedFds));
+      setIsSaving(false);
+    } catch (error) {
+      console.error('Error saving data to localStorage:', error);
+      setError(`Failed to save data: ${error.message}`);
+      setIsSaving(false);
     }
-    
-    let sha = null;
-    
-    // First check if the file exists
-    const getFileResponse = await fetch(
-      `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`,
-      {
-        headers: {
-          Authorization: `token ${GITHUB_TOKEN}`,
-          Accept: 'application/vnd.github.v3+json',
-        },
-      }
-    );
-    
-    // If file exists, get its SHA
-    if (getFileResponse.ok) {
-      const fileData = await getFileResponse.json();
-      sha = fileData.sha;
-    } else if (getFileResponse.status !== 404) {
-      // If error is not 404 (not found), throw error
-      throw new Error(`GitHub API error: ${getFileResponse.status}`);
-    }
-    
-    // Prepare the file content
-    const content = btoa(JSON.stringify(updatedFds, null, 2));
-    
-    // Create request body - only include sha if updating existing file
-    const requestBody = {
-      message: 'Update fixed deposits data',
-      content: content,
-    };
-    
-    // Add SHA if file exists (we're updating)
-    if (sha) {
-      requestBody.sha = sha;
-    }
-    
-    // Create or update the file
-    const updateResponse = await fetch(
-      `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`,
-      {
-        method: 'PUT',
-        headers: {
-          Authorization: `token ${GITHUB_TOKEN}`,
-          Accept: 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      }
-    );
-    
-    if (!updateResponse.ok) {
-      const errorData = await updateResponse.json();
-      console.error('GitHub API error details:', errorData);
-      throw new Error(`Failed to save data to GitHub: ${updateResponse.status}`);
-    }
-    
-    // Also save to localStorage as backup
-    localStorage.setItem('fixedDeposits', JSON.stringify(updatedFds));
-    setIsSaving(false);
-  } catch (error) {
-    console.error('Error saving data to GitHub:', error);
-    setError(`Failed to save to GitHub: ${error.message}. Changes saved locally.`);
-    // Still save to localStorage as backup
-    localStorage.setItem('fixedDeposits', JSON.stringify(updatedFds));
-    setIsSaving(false);
-  }
-};
-  
-
-
+  };
 
   // Load data on component mount
   useEffect(() => {
-    fetchDataFromGitHub();
+    loadDataFromLocalStorage();
   }, []);
 
   // Effect to handle start date calculation
@@ -335,7 +116,7 @@ const saveDataToGitHub = async (updatedFds) => {
     }
     
     setFds(updatedFds); // Update local state
-    await saveDataToGitHub(updatedFds); // Save to GitHub
+    await saveDataToLocalStorage(updatedFds); // Save to localStorage
     
     // Reset form and edit state
     setFormData({
@@ -361,7 +142,11 @@ const saveDataToGitHub = async (updatedFds) => {
   const handleDelete = async (index) => {
     const updatedFds = fds.filter((_, i) => i !== index);
     setFds(updatedFds); // Update local state
-    await saveDataToGitHub(updatedFds); // Save to GitHub
+    await saveDataToLocalStorage(updatedFds); // Save to localStorage
+  };
+  
+  const handleRefresh = () => {
+    loadDataFromLocalStorage();
   };
   
   if (isLoading) {
@@ -394,11 +179,14 @@ const saveDataToGitHub = async (updatedFds) => {
     <div className="max-w-4xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6 text-center">Fixed Deposit Management System</h1>
       
-      {!GITHUB_TOKEN && (
-        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">
-          <strong>Warning:</strong> GitHub token not configured. Data will only be saved locally.
-        </div>
-      )}
+      <div className="mb-4 flex justify-end">
+        <button 
+          onClick={handleRefresh}
+          className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 flex items-center gap-2"
+        >
+          <RefreshCw size={16} /> Refresh Data
+        </button>
+      </div>
       
       <div className="bg-white p-6 rounded-lg shadow-md mb-8">
         <h2 className="text-xl font-semibold mb-4">{editIndex !== null ? 'Edit Fixed Deposit' : 'Add New Fixed Deposit'}</h2>
