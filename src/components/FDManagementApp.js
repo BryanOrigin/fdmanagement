@@ -77,7 +77,7 @@ export default function FDManagementWithGoogleSheets() {
                                  // It's primarily for non-authenticated API calls or specific Google APIs.
                                  // Keep it if you have specific reasons, but try removing it first for auth issues.
   
-        clientId: 'bnbnbnbn-hk0u5pnonu910os60lusuog7j9el79p7.apps.googleusercontent.com', // KEEP THIS - It's essential
+        clientId: '476126862033-hk0u5pnonu910os60lusuog7j9el79p7.apps.googleusercontent.com', // KEEP THIS - It's essential
   
         discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'], // KEEP THIS - Needed to discover Sheets API methods
   
