@@ -28,9 +28,7 @@ export default function SimpleFDManagementApp() {
   const GITHUB_TOKEN = process.env.REACT_APP_GITHUB_TOKEN;
   const FILE_PATH = 'fixed-deposits.json';
 
-  useEffect(() => {
-    console.log(GITHUB_USERNAME,REPO_NAME,GITHUB_TOKEN,FILE_PATH);
-  }, []);
+
   // Fetch data from GitHub
   const fetchDataFromGitHub = async () => {
     try {
@@ -72,63 +70,64 @@ export default function SimpleFDManagementApp() {
   };
 
   // Save data to GitHub
-  const saveDataToGitHub = async (updatedFds) => {
-    try {
-      setIsSaving(true);
-      
-      // First get the SHA of the file if it exists (needed for updating)
-      const getFileResponse = await fetch(
-        `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`,
-        {
-          headers: {
-            Authorization: `token ${GITHUB_TOKEN}`,
-            Accept: 'application/vnd.github.v3+json',
-          },
-        }
-      );
-      
-      let sha;
-      if (getFileResponse.ok) {
-        const fileData = await getFileResponse.json();
-        sha = fileData.sha;
+  // Save data to GitHub
+const saveDataToGitHub = async (updatedFds) => {
+  try {
+    setIsSaving(true);
+    
+    // First get the SHA of the file if it exists (needed for updating)
+    const getFileResponse = await fetch(
+      `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`,
+      {
+        headers: {
+          Authorization: `token ${GITHUB_TOKEN}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
       }
-      
-      // Prepare the file content
-      const content = btoa(JSON.stringify(updatedFds, null, 2));
-      
-      // Create or update the file
-      const updateResponse = await fetch(
-        `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `token ${GITHUB_TOKEN}`,
-            Accept: 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: 'Update fixed deposits data',
-            content,
-            sha: sha, // Include the SHA if updating an existing file
-          }),
-        }
-      );
-      
-      if (!updateResponse.ok) {
-        throw new Error('Failed to save data to GitHub');
-      }
-      
-      // Also save to localStorage as backup
-      localStorage.setItem('fixedDeposits', JSON.stringify(updatedFds));
-      setIsSaving(false);
-    } catch (error) {
-      console.error('Error saving data to GitHub:', error);
-      setError('Failed to save data to GitHub. Changes saved locally.');
-      // Still save to localStorage as backup
-      localStorage.setItem('fixedDeposits', JSON.stringify(updatedFds));
-      setIsSaving(false);
+    );
+    
+    let sha;
+    if (getFileResponse.ok) {
+      const fileData = await getFileResponse.json();
+      sha = fileData.sha;
     }
-  };
+    
+    // Prepare the file content
+    const content = btoa(JSON.stringify(updatedFds, null, 2));
+    
+    // Create or update the file
+    const updateResponse = await fetch(
+      `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `token ${GITHUB_TOKEN}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: 'Update fixed deposits data',
+          content,
+          sha: sha, // Include the SHA if updating an existing file
+        }),
+      }
+    );
+    
+    if (!updateResponse.ok) {
+      throw new Error('Failed to save data to GitHub');
+    }
+    
+    // Also save to localStorage as backup
+    localStorage.setItem('fixedDeposits', JSON.stringify(updatedFds));
+    setIsSaving(false);
+  } catch (error) {
+    console.error('Error saving data to GitHub:', error);
+    setError('Failed to save data to GitHub. Changes saved locally.');
+    // Still save to localStorage as backup
+    localStorage.setItem('fixedDeposits', JSON.stringify(updatedFds));
+    setIsSaving(false);
+  }
+};
 
   // Load data on component mount
   useEffect(() => {
