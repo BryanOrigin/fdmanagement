@@ -114,7 +114,8 @@ const fetchDataFromGitHub = async () => {
       `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`,
       {
         headers: {
-          Authorization: `Bearer ${GITHUB_TOKEN}`, // Changed from 'token' to 'Bearer'
+          // Try both formats - depending on your token, one should work
+          Authorization: `token ${GITHUB_TOKEN}`,
           Accept: 'application/vnd.github.v3+json',
         },
       }
@@ -208,6 +209,9 @@ const saveDataToGitHub = async (updatedFds) => {
       }
     );
     
+
+    
+
     let sha;
     if (getFileResponse.ok) {
       const fileData = await getFileResponse.json();
@@ -223,15 +227,12 @@ const saveDataToGitHub = async (updatedFds) => {
       {
         method: 'PUT',
         headers: {
+          // Try both formats - depending on your token, one should work
           Authorization: `token ${GITHUB_TOKEN}`,
           Accept: 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          message: 'Update fixed deposits data',
-          content,
-          sha: sha, // Include the SHA if updating an existing file
-        }),
+        body: JSON.stringify(requestBody),
       }
     );
     
