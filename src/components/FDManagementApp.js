@@ -27,7 +27,73 @@ export default function SimpleFDManagementApp() {
   const REPO_NAME = process.env.REACT_APP_GITHUB_REPO;
   const GITHUB_TOKEN = process.env.REACT_APP_GITHUB_TOKEN;
   const FILE_PATH = 'fixed-deposits.json';
-
+// Add this test function near the top of your component
+const testGitHubConnection = async () => {
+  setError(null);
+  console.log("Testing GitHub connection...");
+  console.log("Username:", GITHUB_USERNAME);
+  console.log("Repo:", REPO_NAME);
+  console.log("Token exists:", !!GITHUB_TOKEN);
+  
+  try {
+    // First, test the GitHub API connection with user info endpoint
+    const userResponse = await fetch("https://api.github.com/user", {
+      headers: {
+        Authorization: `token ${GITHUB_TOKEN}` // Try "token" format first
+      }
+    });
+    
+    if (userResponse.status === 401) {
+      // Try Bearer format if token format failed
+      const bearerResponse = await fetch("https://api.github.com/user", {
+        headers: {
+          Authorization: `Bearer ${GITHUB_TOKEN}`
+        }
+      });
+      
+      if (bearerResponse.status === 401) {
+        throw new Error("GitHub authentication failed with both token formats. Your token may be invalid or expired.");
+      } else if (bearerResponse.ok) {
+        const userData = await bearerResponse.json();
+        console.log("GitHub connection successful using Bearer format!");
+        console.log("Logged in as:", userData.login);
+        setError(`Connection successful using Bearer format! Logged in as: ${userData.login}`);
+        return "Bearer";
+      }
+    } else if (userResponse.ok) {
+      const userData = await userResponse.json();
+      console.log("GitHub connection successful using token format!");
+      console.log("Logged in as:", userData.login);
+      setError(`Connection successful using token format! Logged in as: ${userData.login}`);
+      return "token";
+    }
+    
+    // Now test repo access
+    const repoFormat = userResponse.ok ? "token" : "Bearer";
+    const repoResponse = await fetch(
+      `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}`,
+      {
+        headers: {
+          Authorization: `${repoFormat} ${GITHUB_TOKEN}`
+        }
+      }
+    );
+    
+    if (repoResponse.ok) {
+      const repoData = await repoResponse.json();
+      console.log("Repository access successful!");
+      console.log("Repo:", repoData.full_name);
+      setError(prev => prev + `\nRepository access successful: ${repoData.full_name}`);
+    } else {
+      const repoErrorData = await repoResponse.json();
+      console.error("Repository access failed:", repoErrorData);
+      throw new Error(`Repository access failed: ${repoResponse.status} - ${repoErrorData.message}`);
+    }
+  } catch (error) {
+    console.error("GitHub test failed:", error);
+    setError(`GitHub test failed: ${error.message}`);
+  }
+};
 
   // Fetch data from GitHub
  // Fetch data from GitHub
@@ -57,9 +123,21 @@ const fetchDataFromGitHub = async () => {
     if (response.status === 401) {
       console.error('GitHub authorization failed. Check your token.');
       setError('GitHub authorization failed. Check your token or permissions.');
+
+                {/* Add this right after your GitHub configuration status */}
+      <div className="mb-4 flex justify-center">
+        <button 
+          onClick={testGitHubConnection}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Test GitHub Connection
+        </button>
+      </div>
       setIsLoading(false);
       return;
     }
+
+
 
     if (response.status === 404) {
       // File doesn't exist yet
@@ -98,7 +176,7 @@ const fetchDataFromGitHub = async () => {
     
     setIsLoading(false);
   } catch (error) {
-    /*
+    
     console.error('Error fetching data from GitHub:', error);
     setError('Failed to load data. Please check your GitHub configuration.');
     setIsLoading(false);
@@ -107,33 +185,9 @@ const fetchDataFromGitHub = async () => {
     if (savedFds) {
       setFds(JSON.parse(savedFds));
     }
-      */
-
-    return (
-      <div className="max-w-md mx-auto mt-8">
-        <div className="p-4 mb-4 bg-red-50 border border-red-200 rounded-md">
-          <h2 className="text-red-700 font-semibold mb-2">Error</h2>
-          <p className="text-red-600">{error}</p>
-          <button 
-            onClick={() => setError(null)} 
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            Dismiss
-          </button>
-        </div>
-        
-        <div className="p-4 bg-gray-50 border border-gray-200 rounded">
-          <h3 className="font-medium mb-2">GitHub Configuration Status:</h3>
-          <ul className="list-disc pl-5">
-            <li>Username: {GITHUB_USERNAME ? '✅ Set' : '❌ Missing'}</li>
-            <li>Repo Name: {REPO_NAME ? '✅ Set' : '❌ Missing'}</li>
-            <li>Token: {GITHUB_TOKEN ? '✅ Set' : '❌ Missing'}</li>
-            <li>File Path: {FILE_PATH || 'fixed-deposits.json'}</li>
-          </ul>
-        </div>
-      </div>
-    );
   }
+
+  
 };
 
   // Save data to GitHub
@@ -196,6 +250,9 @@ const saveDataToGitHub = async (updatedFds) => {
     setIsSaving(false);
   }
 };
+  
+
+
 
   // Load data on component mount
   useEffect(() => {
